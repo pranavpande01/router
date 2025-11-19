@@ -12,7 +12,6 @@ def revise(md_text: str,
 
     client = OpenAI(api_key=os.environ.get('KEY'))
 
-    # Load prompt from YAML file
     prompt = load_prompt('langextract_reviser',
                         md_text=md_text,
                         previous_examples_json=previous_examples_json,

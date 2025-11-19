@@ -10,7 +10,6 @@ Pipeline:
 
 from dotenv import load_dotenv
 
-# Load environment variables first
 load_dotenv()
 
 from generator import generate_invoice_langextract_assets
@@ -33,7 +32,6 @@ def run_extraction_pipeline(invoice_markdown: str, max_revisions: int = 3, verbo
         AnnotatedDocument: Final extraction result from LangExtract
     """
 
-    # Step 1: Generate initial dataset
     if verbose:
         print("Step 1: Generating initial examples and prompt...")
 
@@ -50,7 +48,6 @@ def run_extraction_pipeline(invoice_markdown: str, max_revisions: int = 3, verbo
             print(f"\nIteration {iteration + 1}/{max_revisions}")
             print("  Running sanity check...")
 
-        # Sanity check current examples
         sanity_result = sanity_check(
             data={'extractions': examples, 'prompt': prompt},
             original_md=invoice_markdown
@@ -68,13 +65,11 @@ def run_extraction_pipeline(invoice_markdown: str, max_revisions: int = 3, verbo
                 ])
                 print(f"  Found {error_count} issues")
 
-        # If valid, stop iterating
         if sanity_result['is_valid']:
             if verbose:
                 print("  Quality check passed!")
             break
 
-        # Revise to fix issues
         if verbose:
             print("  Revising examples and prompt...")
 
@@ -91,7 +86,6 @@ def run_extraction_pipeline(invoice_markdown: str, max_revisions: int = 3, verbo
         if verbose:
             print(f"  Updated to {len(examples)} examples")
 
-    # Step 4: Extract using LangExtract
     if verbose:
         print("\nStep 4: Running LangExtract extraction...")
 

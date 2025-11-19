@@ -10,7 +10,6 @@ def load_prompt(prompt_name: str, **kwargs) -> str:
     prompt_config = prompts_data['prompts'][prompt_name]
     template = prompt_config['template']
 
-    # Format template with provided kwargs
     return template.format(**kwargs)
 
 

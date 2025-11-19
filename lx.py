@@ -8,16 +8,12 @@ def _convert_to_example_data(data, invoice_text):
     import langextract as lx
     import json
 
-    # Handle JSON string
     if isinstance(data, str):
         data = json.loads(data)
 
-    # Handle single dict
     if isinstance(data, dict):
         data = [data]
 
-    # Check if this is a list of extraction objects (from generator)
-    # or a list of full example objects (with 'text' field)
     if data and "text" not in data[0] and "extraction_class" in data[0]:
         # This is a list of extraction objects - wrap them in a single ExampleData
         extractions = []
@@ -31,7 +27,6 @@ def _convert_to_example_data(data, invoice_text):
             )
         return [lx.data.ExampleData(text=invoice_text, extractions=extractions)]
 
-    # Otherwise, this is a list of full example objects
     examples = []
     for item in data:
         extractions = []
@@ -60,7 +55,6 @@ def extract(invoice_text: str, prompt: str, examples: str) -> dict:
     from dotenv import load_dotenv
     load_dotenv()
 
-    # Convert dict/list examples to ExampleData objects
     if isinstance(examples, (list, dict, str)):
         examples = _convert_to_example_data(examples, invoice_text)
 

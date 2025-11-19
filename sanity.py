@@ -13,7 +13,6 @@ def sanity_check(data, original_md):
 
     data_str = json.dumps(data, indent=2, default=str)
 
-    # Load prompt from YAML file
     prompt = load_prompt('sanity_checker',
                         original_md=original_md,
                         data_str=data_str)
