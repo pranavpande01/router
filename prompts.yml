@@ -1,0 +1,248 @@
+prompts:
+  newspaper_invoice_extraction:
+    description: "Extract complete newspaper invoice information in a structured format"
+    template: |
+      Extract complete newspaper invoice information in a structured format.
+
+      Extract the following elements in order of appearance:
+
+      1. **Invoice Metadata** (MUST extract first)
+        - Client company name (who is billed)
+        - Invoice number
+        - Invoice date
+        - Estimate number/reference (if present)
+        - Campaign name (if present)
+        - Activity period (if present)
+
+      2. **Media Bookings** (Extract ALL bill groups completely)
+        IMPORTANT: Each "Vide Bill" represents ONE booking with multiple editions/cities.
+
+        For EACH bill group, extract:
+        - Bill number (e.g., "AD-BN-25060393", "TN0914/25-26")
+        - Publication name (e.g., "Business Standard", "Dinamalar - T")
+        - Publication date (when ad was published)
+        - Ad size/dimensions (e.g., "12.00(W) X 32.00(H) SQC")
+        - Total area in sq.cm (e.g., 384.00, 432.00)
+        - Rate per sq.cm (e.g., 80.00, 70.00)
+        - Gross amount (total gross before discount)
+        - Net amount (after agency discount)
+        - Editions/Cities covered (comma-separated string of all cities where ad ran)
+        - Color/Position details (e.g., "B&W, ANY RHP", "B&W, Early RHP")
+
+        DO NOT create separate bookings for each city/edition - they are part of ONE booking.
+
+      3. **Financial Summary** (Extract at the end)
+        - Media Space Gross (total gross amount)
+        - Agency Discount (discount amount)
+        - Taxable Amount
+        - SGST/CGST amounts and rates
+        - Agency Commission details
+        - Total Payable (final amount)
+
+      CRITICAL RULES:
+      - ONE bill number = ONE booking (even if published across multiple cities)
+      - Use EXACT text from the document
+      - Extract amounts as numeric values (remove commas, currency symbols)
+      - Group all editions/cities under their respective bill number
+      - Maintain order of bill groups as they appear
+
+      This data will be used for invoice reconciliation, so accuracy is critical.
+
+  invoice_langextract:
+    description: "LangExtract dataset creation assistant for invoice processing"
+    template: |
+      You are a LangExtract dataset creation assistant.
+
+      Given the following invoice Markdown text, produce:
+      1. Extraction examples (multiple JSON examples)
+      2. A complete LangExtract prompt with schema + rules + examples
+      3. (Do NOT hallucinate data—only use what exists in the invoice)
+
+      The extraction objects MUST follow this structure:
+
+      {{
+        "extractions": [
+          {{
+            "extraction_class": "invoice_metadata",
+            "extraction_text": "...",
+            "attributes": {{ ... }}
+          }},
+          {{
+            "extraction_class": "media_booking",
+            "extraction_text": "...",
+            "attributes": {{ ... }}
+          }}
+        ],
+        "prompt": "string"
+      }}
+
+      STRICT REQUIREMENTS:
+      - The top-level JSON MUST contain ONLY: "extractions" and "prompt".
+      - "extractions" MUST be a list of extraction objects.
+      - NO additional keys such as "invoice", "metadata", "entities", "client", "totals", etc.
+      - NO outer wrapper objects.
+      - NO extra nesting.
+      - NO interpretation or restructuring of the invoice.
+      - ONLY the extraction examples and the prompt.
+
+      Input Markdown:
+      ----------------
+      {md_text}
+      ----------------
+
+  langextract_reviser:
+    description: "LangExtract Prompt & Example Improver based on sanity check feedback"
+    template: |
+      You are a LangExtract Prompt & Example Improver.
+
+      Your job is to repair and improve a LangExtract extraction dataset based on:
+      1. The ORIGINAL invoice Markdown text
+      2. The PREVIOUS LangExtract examples
+      3. The PREVIOUS LangExtract prompt
+      4. The SANITY CHECK verdict (errors, missing fields, hallucinations, mismatches)
+
+      You MUST produce:
+      - Improve the set of extraction examples
+      - A improve LangExtract prompt
+      - NOTHING ELSE
+
+      ========================================
+      INPUT DOCUMENTS
+      ========================================
+
+      ORIGINAL INVOICE MARKDOWN:
+      --------------------------
+      {md_text}
+      --------------------------
+
+      PREVIOUS EXTRACTION EXAMPLES:
+      --------------------------
+      {previous_examples_json}
+      --------------------------
+
+      PREVIOUS LANGEXTRACT PROMPT:
+      --------------------------
+      {previous_prompt_text}
+      --------------------------
+
+      SANITY CHECK VERDICT:
+      --------------------------
+      {sanity_report_json}
+      --------------------------
+
+      ========================================
+      YOUR TASK
+      ========================================
+
+      Use the sanity-check verdict to come up with a revised set of extraction examples and an improved LangExtract prompt.:
+      - Remove hallucinated values
+      - Add missing values that appear in the invoice
+      - Correct any mismatches (numbers, totals, dates, item names)
+      - Ensure attributes ONLY include data found in the invoice
+      - Ensure examples follow the documented schema exactly
+      - Improve clarity & precision of the extraction prompt
+      - Add or refine rules to prevent the identified errors from happening again
+
+      You MUST:
+      - Use ONLY information that appears in the ORIGINAL MARKDOWN
+      - NEVER use values from the previous examples if they do not appear in the markdown
+      - Ensure the examples directly correspond to real text spans from the document
+      - Ensure "extraction_text" is ALWAYS text copied verbatim from the invoice
+      - Ensure attributes EXACTLY match what the invoice contains
+      - Include multiple extractions if the document contains multiple relevant structures
+      - Ensure the improved prompt includes rules that explicitly prevent the errors reported
+
+      ========================================
+      OUTPUT FORMAT (STRICT)
+      ========================================
+
+      Return a SINGLE JSON object:
+
+      {{
+        "extractions": [
+          {{
+            "extraction_class": "invoice_metadata" | "media_booking" | "...",
+            "extraction_text": "MUST be copied verbatim from invoice markdown",
+            "attributes": {{
+               "...": "..."
+            }}
+          }},
+          ...
+        ],
+        "prompt": "A revised, strictly formatted LangExtract prompt string"
+      }}
+
+      STRICT RULES:
+      - No additional keys at top level.
+      - No commentary, no explanation, no markdown, no prose.
+      - Do NOT invent or hallucinate any values.
+      - If something is missing in the invoice, DO NOT add it.
+      - extraction_text MUST always come from the invoice.
+      - The output MUST be valid JSON.
+
+      Begin your improved output now.
+
+  sanity_checker:
+    description: "Deep sanity check comparing extracted data vs original markdown"
+    template: |
+      You are a senior data validation expert specializing in comparing
+      extracted structured data against raw unstructured documents.
+
+      Your job is to evaluate whether the LangExtract output is correct.
+
+      ==============================================================
+      ORIGINAL MARKDOWN DOCUMENT
+      ==============================================================
+      {original_md}
+
+      ==============================================================
+      EXTRACTED JSON DATA
+      ==============================================================
+      {data_str}
+
+      ==============================================================
+      VALIDATION CRITERIA
+      ==============================================================
+
+      You must check:
+
+      1. SCHEMA ERRORS
+         - Missing required keys
+         - Wrong field types
+         - Incorrect structure
+         - Unexpected keys
+
+      2. EXTRACTION TEXT VALIDITY
+         - Whether "extraction_text" appears EXACTLY in the original markdown
+         - Report any text that does NOT come from the document
+
+      3. HALLUCINATIONS
+         - Any value not present anywhere in the markdown
+
+      4. MISSING VALUES
+         - Values clearly present in the invoice but missing in extraction
+
+      5. MISMATCHES
+         - Numerical mismatches (totals, amounts, dates, invoice numbers)
+         - Formatting inconsistencies (dates, amounts)
+
+      6. LOGICAL ERRORS
+         - Totals that don't add up
+         - Inconsistent dates
+         - Impossible quantities or negative amounts
+
+      ==============================================================
+      OUTPUT FORMAT (STRICT JSON)
+      ==============================================================
+
+      Return ONLY a JSON object with the following fields:
+
+      {{
+        "is_valid": true/false,
+        "schema_errors": [],
+        "hallucinations": [],
+        "missing_values": [],
+        "mismatches": [],
+        "logical_errors": [],
+        "suggestions": []
+      }}
